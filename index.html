@@ -1,0 +1,471 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="2566">
+  <style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
+  </style>
+</head>
+<body>
+<p class="p1">import { useState, useEffect } from "react";</p>
+<p class="p2"><br></p>
+<p class="p1">export default function ExposureTriangleSimulator() {</p>
+<p class="p1"><span class="Apple-converted-space">  </span>// Values for each setting</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const shutterSpeeds = ["1/8", "1/15", "1/30", "1/60", "1/125", "1/250", "1/500", "1/1000"];</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const apertures = ["f16", "f11", "f8", "f5.6", "f4", "f2.8", "f2", "f1.4"];</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const isoValues = ["100", "200", "400", "800", "1600", "3200", "6400", "12800"];</p>
+<p class="p2"><span class="Apple-converted-space">  </span></p>
+<p class="p1"><span class="Apple-converted-space">  </span>// New lighting conditions and their exposure impacts</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const lightingConditions = ["Night", "Indoors", "Shade", "Overcast", "Daylight"];</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const lightingStops = [-4, -3, -2, 3, 4]; // Stops of light for each condition</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">  </span>// Color scheme</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const colors = {</p>
+<p class="p1"><span class="Apple-converted-space">    </span>shutterSpeed: "#25C3ED", // Blue</p>
+<p class="p1"><span class="Apple-converted-space">    </span>aperture: "#D393C1", <span class="Apple-converted-space">    </span>// Purple</p>
+<p class="p1"><span class="Apple-converted-space">    </span>iso: "#EAEAEA",<span class="Apple-converted-space">          </span>// Light gray</p>
+<p class="p1"><span class="Apple-converted-space">    </span>lighting: "#F9A826", <span class="Apple-converted-space">    </span>// Amber/Orange for lighting</p>
+<p class="p1"><span class="Apple-converted-space">    </span>background: "#091727", <span class="Apple-converted-space">  </span>// Dark blue</p>
+<p class="p1"><span class="Apple-converted-space">    </span>text: "#FFFFFF", <span class="Apple-converted-space">        </span>// White text</p>
+<p class="p1"><span class="Apple-converted-space">    </span>success: "#049CD9",<span class="Apple-converted-space">      </span>// Blue for success (was green)</p>
+<p class="p1"><span class="Apple-converted-space">    </span>failure: "#F9A826",<span class="Apple-converted-space">      </span>// Amber for failure (was red)</p>
+<p class="p1"><span class="Apple-converted-space">    </span>lightMeter: "#049CD9", <span class="Apple-converted-space">  </span>// Light meter blue</p>
+<p class="p1"><span class="Apple-converted-space">  </span>};</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">  </span>// State for slider values (0-7 index)</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const [shutterSpeedIdx, setShutterSpeedIdx] = useState(3); // Default 1/60</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const [apertureIdx, setApertureIdx] = useState(3); <span class="Apple-converted-space">        </span>// Default f5.6</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const [isoIdx, setIsoIdx] = useState(2); <span class="Apple-converted-space">                  </span>// Default 400</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const [lightingIdx, setLightingIdx] = useState(2); <span class="Apple-converted-space">        </span>// Default Shade</p>
+<p class="p2"><span class="Apple-converted-space">  </span></p>
+<p class="p1"><span class="Apple-converted-space">  </span>// State for feedback</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const [feedback, setFeedback] = useState("");</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const [isCorrect, setIsCorrect] = useState(null);</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const [hasSubmitted, setHasSubmitted] = useState(false);</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const [exposureStops, setExposureStops] = useState(0);</p>
+<p class="p2"><span class="Apple-converted-space">  </span></p>
+<p class="p1"><span class="Apple-converted-space">  </span>// Update exposure stops in real-time when settings change</p>
+<p class="p1"><span class="Apple-converted-space">  </span>useEffect(() =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">    </span>setExposureStops(calculateExposureStops());</p>
+<p class="p1"><span class="Apple-converted-space">    </span>setIsCorrect(isExposureCorrect());</p>
+<p class="p1"><span class="Apple-converted-space">  </span>}, [shutterSpeedIdx, apertureIdx, isoIdx, lightingIdx]);</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">  </span>// Calculate exposure value (simplified)</p>
+<p class="p1"><span class="Apple-converted-space">  </span>// In photography, each stop is a doubling/halving of light</p>
+<p class="p1"><span class="Apple-converted-space">  </span>// For this simulation, our index values directly correlate to stops</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const calculateExposureValue = () =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">    </span>// Higher shutter speed index = less light</p>
+<p class="p1"><span class="Apple-converted-space">    </span>// Higher aperture index = more light (smaller f-number = larger opening)</p>
+<p class="p1"><span class="Apple-converted-space">    </span>// Higher ISO index = more light</p>
+<p class="p1"><span class="Apple-converted-space">    </span>// Add lighting condition effect to the calculation</p>
+<p class="p2"><span class="Apple-converted-space">    </span></p>
+<p class="p1"><span class="Apple-converted-space">    </span>// For proper exposure, we want these to balance out</p>
+<p class="p1"><span class="Apple-converted-space">    </span>// A balanced exposure would be when these three values sum to a target value</p>
+<p class="p2"><span class="Apple-converted-space">    </span></p>
+<p class="p1"><span class="Apple-converted-space">    </span>return (7 - shutterSpeedIdx) + apertureIdx + isoIdx + lightingStops[lightingIdx];</p>
+<p class="p1"><span class="Apple-converted-space">  </span>};</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">  </span>// Calculate exposure in stops relative to "correct" exposure</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const calculateExposureStops = () =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">    </span>// For our simplified model, a "correct" exposure has a target value of 10</p>
+<p class="p1"><span class="Apple-converted-space">    </span>// Each unit away from 10 represents roughly 1 stop of under/overexposure</p>
+<p class="p1"><span class="Apple-converted-space">    </span>// We're clamping the output to be between -2 and +2 stops for the meter display</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const ev = calculateExposureValue();</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const stops = ev - 10;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>return Math.min(Math.max(stops, -2), 2);</p>
+<p class="p1"><span class="Apple-converted-space">  </span>};</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">  </span>// Check if exposure is correct (in a specific range)</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const isExposureCorrect = () =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">    </span>// For our simplified model, a "correct" exposure has a target value of 10</p>
+<p class="p1"><span class="Apple-converted-space">    </span>// This is a good balanced middle point in our system</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const ev = calculateExposureValue();</p>
+<p class="p1"><span class="Apple-converted-space">    </span>return ev &gt;= 9 &amp;&amp; ev &lt;= 11;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>};</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">  </span>// Generate feedback based on current exposure</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const generateFeedback = () =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">    </span>if (isExposureCorrect()) {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>return "Perfect exposure! Your settings are well balanced.";</p>
+<p class="p1"><span class="Apple-converted-space">    </span>} else {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const ev = calculateExposureValue();</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const stops = calculateExposureStops();</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (ev &lt; 9) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>return `Your image would be underexposed by approximately ${Math.abs(stops).toFixed(1)} stops. Try using a slower shutter speed, wider aperture (smaller f-number), or higher ISO.`;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>} else {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>return `Your image would be overexposed by approximately ${Math.abs(stops).toFixed(1)} stops. Try using a faster shutter speed, narrower aperture (larger f-number), or lower ISO.`;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>}</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p1"><span class="Apple-converted-space">  </span>};</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">  </span>// Update feedback in real-time when settings change</p>
+<p class="p1"><span class="Apple-converted-space">  </span>useEffect(() =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">    </span>if (hasSubmitted) {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>setFeedback(generateFeedback());</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p1"><span class="Apple-converted-space">  </span>}, [shutterSpeedIdx, apertureIdx, isoIdx, lightingIdx, hasSubmitted]);</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">  </span>// Handle submit button click</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const handleSubmit = () =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">    </span>setHasSubmitted(true);</p>
+<p class="p1"><span class="Apple-converted-space">    </span>setFeedback(generateFeedback());</p>
+<p class="p1"><span class="Apple-converted-space">  </span>};</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">  </span>// Reset the simulation</p>
+<p class="p1"><span class="Apple-converted-space">  </span>const handleReset = () =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">    </span>setHasSubmitted(false);</p>
+<p class="p1"><span class="Apple-converted-space">    </span>setFeedback("");</p>
+<p class="p1"><span class="Apple-converted-space">    </span>setIsCorrect(null);</p>
+<p class="p1"><span class="Apple-converted-space">    </span>setExposureStops(0);</p>
+<p class="p1"><span class="Apple-converted-space">  </span>};</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">  </span>return (</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div className="flex flex-col items-center p-8 font-sans text-white" style={{ fontFamily: "Roboto, sans-serif", backgroundColor: colors.background, aspectRatio: "16/9", width: "100%" }}&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;h1 className="text-3xl font-bold mb-6"&gt;The Exposure Triangle&lt;/h1&gt;</p>
+<p class="p2"><span class="Apple-converted-space">      </span></p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;div className="w-full max-w-4xl bg-black bg-opacity-30 p-6 rounded-lg"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>{/* Lighting Condition Slider */}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;div className="mb-8"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;label className="text-lg font-medium mb-2 block" style={{ color: colors.lighting }}&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>Lighting Condition</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;/label&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;div className="flex items-center gap-4"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;input</p>
+<p class="p1"><span class="Apple-converted-space">              </span>type="range"</p>
+<p class="p1"><span class="Apple-converted-space">              </span>min="0"</p>
+<p class="p1"><span class="Apple-converted-space">              </span>max="4"</p>
+<p class="p1"><span class="Apple-converted-space">              </span>value={lightingIdx}</p>
+<p class="p1"><span class="Apple-converted-space">              </span>onChange={(e) =&gt; setLightingIdx(parseInt(e.target.value))}</p>
+<p class="p1"><span class="Apple-converted-space">              </span>className="flex-grow"</p>
+<p class="p1"><span class="Apple-converted-space">              </span>style={{ accentColor: colors.lighting }}</p>
+<p class="p1"><span class="Apple-converted-space">            </span>/&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div className="text-center min-w-20 px-4 py-2 rounded-lg" style={{ backgroundColor: `${colors.lighting}22` }}&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;div style={{ color: colors.lighting }} className="text-xl font-bold"&gt;{lightingConditions[lightingIdx]}&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;div className="text-sm opacity-80"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>{lightingStops[lightingIdx] &gt; 0 ? `+${lightingStops[lightingIdx]} stops` : `${lightingStops[lightingIdx]} stops`}</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>{/* Fixed lighting condition labels */}</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;div className="flex mt-1 text-sm"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div className="flex-1 text-center"&gt;Night&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div className="flex-1 text-center"&gt;Indoors&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div className="flex-1 text-center"&gt;Shade&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div className="flex-1 text-center"&gt;Overcast&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div className="flex-1 text-center"&gt;Daylight&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
+<p class="p2"><span class="Apple-converted-space">        </span></p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;div className="grid grid-cols-3 gap-6 mb-8"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>{/* Visual representation of the triangle */}</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;div className="col-span-3 flex justify-center mb-4"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div className="relative"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;svg viewBox="0 0 300 280" width="300" height="280"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>{/* Triangle */}</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;polygon<span class="Apple-converted-space"> </span></p>
+<p class="p1"><span class="Apple-converted-space">                  </span>points="150,10 10,250 290,250"<span class="Apple-converted-space"> </span></p>
+<p class="p1"><span class="Apple-converted-space">                  </span>fill="none"<span class="Apple-converted-space"> </span></p>
+<p class="p1"><span class="Apple-converted-space">                  </span>stroke="white"<span class="Apple-converted-space"> </span></p>
+<p class="p1"><span class="Apple-converted-space">                  </span>strokeWidth="2"</p>
+<p class="p1"><span class="Apple-converted-space">                </span>/&gt;</p>
+<p class="p2"><span class="Apple-converted-space">                </span></p>
+<p class="p1"><span class="Apple-converted-space">                </span>{/* Lighting condition indicator */}</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;circle</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>cx="150"</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>cy="40"</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>r="15"</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>fill={colors.lighting}</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>opacity="0.6"</p>
+<p class="p1"><span class="Apple-converted-space">                </span>/&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;text<span class="Apple-converted-space"> </span></p>
+<p class="p1"><span class="Apple-converted-space">                  </span>x="150"</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>y="45"</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>textAnchor="middle"</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>fill="white"</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>fontSize="10"</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>fontFamily="Roboto"</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>{lightingConditions[lightingIdx]}</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;/text&gt;</p>
+<p class="p2"><span class="Apple-converted-space">                </span></p>
+<p class="p1"><span class="Apple-converted-space">                </span>{/* Rotated Shutter Speed label along the outer right side, positioned higher */}</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;text<span class="Apple-converted-space"> </span></p>
+<p class="p1"><span class="Apple-converted-space">                  </span>transform="translate(230, 120) rotate(62)"<span class="Apple-converted-space"> </span></p>
+<p class="p1"><span class="Apple-converted-space">                  </span>textAnchor="start"<span class="Apple-converted-space"> </span></p>
+<p class="p1"><span class="Apple-converted-space">                  </span>fill={colors.shutterSpeed}<span class="Apple-converted-space"> </span></p>
+<p class="p1"><span class="Apple-converted-space">                  </span>fontFamily="Roboto"</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>Shutter Speed</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;/text&gt;</p>
+<p class="p2"><span class="Apple-converted-space">                </span></p>
+<p class="p1"><span class="Apple-converted-space">                </span>{/* Rotated Aperture label along the outer left side, positioned higher */}</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;text<span class="Apple-converted-space"> </span></p>
+<p class="p1"><span class="Apple-converted-space">                  </span>transform="translate(70, 120) rotate(-62)"<span class="Apple-converted-space"> </span></p>
+<p class="p1"><span class="Apple-converted-space">                  </span>textAnchor="end"<span class="Apple-converted-space"> </span></p>
+<p class="p1"><span class="Apple-converted-space">                  </span>fill={colors.aperture}<span class="Apple-converted-space"> </span></p>
+<p class="p1"><span class="Apple-converted-space">                  </span>fontFamily="Roboto"</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>Aperture</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;/text&gt;</p>
+<p class="p2"><span class="Apple-converted-space">                </span></p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;text x="150" y="275" textAnchor="middle" fill={colors.iso} fontFamily="Roboto"&gt;ISO&lt;/text&gt;</p>
+<p class="p2"><span class="Apple-converted-space">                </span></p>
+<p class="p1"><span class="Apple-converted-space">                </span>{/* Current settings indicator */}</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;circle</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>cx={150 - (shutterSpeedIdx - 3.5) * 20}</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>cy={130 + (apertureIdx - isoIdx) * 10}</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>r="12"</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>fill={isCorrect === null ? "white" : isCorrect ? colors.success : colors.failure}</p>
+<p class="p1"><span class="Apple-converted-space">                </span>/&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;/svg&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
+<p class="p2"><span class="Apple-converted-space">          </span></p>
+<p class="p1"><span class="Apple-converted-space">          </span>{/* Shutter Speed Slider */}</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;div className="flex flex-col"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;label className="text-lg font-medium mb-2" style={{ color: colors.shutterSpeed }}&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>Shutter Speed</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/label&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;input</p>
+<p class="p1"><span class="Apple-converted-space">              </span>type="range"</p>
+<p class="p1"><span class="Apple-converted-space">              </span>min="0"</p>
+<p class="p1"><span class="Apple-converted-space">              </span>max="7"</p>
+<p class="p1"><span class="Apple-converted-space">              </span>value={shutterSpeedIdx}</p>
+<p class="p1"><span class="Apple-converted-space">              </span>onChange={(e) =&gt; setShutterSpeedIdx(parseInt(e.target.value))}</p>
+<p class="p1"><span class="Apple-converted-space">              </span>className="mb-2"</p>
+<p class="p1"><span class="Apple-converted-space">              </span>style={{ accentColor: colors.shutterSpeed }}</p>
+<p class="p1"><span class="Apple-converted-space">            </span>/&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div className="flex justify-between"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;span&gt;Slower (1/{shutterSpeeds[0].split('/')[1]})&lt;/span&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;span&gt;Faster (1/{shutterSpeeds[7].split('/')[1]})&lt;/span&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div className="text-center mt-4 text-2xl font-bold" style={{ color: colors.shutterSpeed }}&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>{shutterSpeeds[shutterSpeedIdx]}</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
+<p class="p2"><span class="Apple-converted-space">          </span></p>
+<p class="p1"><span class="Apple-converted-space">          </span>{/* Aperture Slider */}</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;div className="flex flex-col"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;label className="text-lg font-medium mb-2" style={{ color: colors.aperture }}&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>Aperture</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/label&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;input</p>
+<p class="p1"><span class="Apple-converted-space">              </span>type="range"</p>
+<p class="p1"><span class="Apple-converted-space">              </span>min="0"</p>
+<p class="p1"><span class="Apple-converted-space">              </span>max="7"</p>
+<p class="p1"><span class="Apple-converted-space">              </span>value={apertureIdx}</p>
+<p class="p1"><span class="Apple-converted-space">              </span>onChange={(e) =&gt; setApertureIdx(parseInt(e.target.value))}</p>
+<p class="p1"><span class="Apple-converted-space">              </span>className="mb-2"</p>
+<p class="p1"><span class="Apple-converted-space">              </span>style={{ accentColor: colors.aperture }}</p>
+<p class="p1"><span class="Apple-converted-space">            </span>/&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div className="flex justify-between"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;span&gt;Narrow (f16)&lt;/span&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;span&gt;Wide (f1.4)&lt;/span&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div className="text-center mt-4 text-2xl font-bold" style={{ color: colors.aperture }}&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>{apertures[apertureIdx]}</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
+<p class="p2"><span class="Apple-converted-space">          </span></p>
+<p class="p1"><span class="Apple-converted-space">          </span>{/* ISO Slider */}</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;div className="flex flex-col"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;label className="text-lg font-medium mb-2" style={{ color: colors.iso }}&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>ISO</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/label&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;input</p>
+<p class="p1"><span class="Apple-converted-space">              </span>type="range"</p>
+<p class="p1"><span class="Apple-converted-space">              </span>min="0"</p>
+<p class="p1"><span class="Apple-converted-space">              </span>max="7"</p>
+<p class="p1"><span class="Apple-converted-space">              </span>value={isoIdx}</p>
+<p class="p1"><span class="Apple-converted-space">              </span>onChange={(e) =&gt; setIsoIdx(parseInt(e.target.value))}</p>
+<p class="p1"><span class="Apple-converted-space">              </span>className="mb-2"</p>
+<p class="p1"><span class="Apple-converted-space">              </span>style={{ accentColor: colors.iso }}</p>
+<p class="p1"><span class="Apple-converted-space">            </span>/&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div className="flex justify-between"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;span&gt;Low (100)&lt;/span&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;span&gt;High (12800)&lt;/span&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div className="text-center mt-4 text-2xl font-bold" style={{ color: colors.iso }}&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>{isoValues[isoIdx]}</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
+<p class="p2"><span class="Apple-converted-space">        </span></p>
+<p class="p1"><span class="Apple-converted-space">        </span>{/* Visual representation of settings */}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;div className="mb-8"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;div className="grid grid-cols-4 gap-4 mb-6"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>{/* Lighting Condition */}</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div className="flex flex-col items-center"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;div className="w-24 h-24 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${colors.lighting}22` }}&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;div className="text-center"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;div style={{ color: colors.lighting }} className="text-2xl font-bold"&gt;{lightingConditions[lightingIdx]}&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;div className="text-sm opacity-80"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{lightingStops[lightingIdx] &gt; 0 ? `+${lightingStops[lightingIdx]} stops` : `${lightingStops[lightingIdx]} stops`}</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;div className="text-sm mt-2" style={{ color: colors.lighting }}&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>Ambient Light</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
+<p class="p2"><span class="Apple-converted-space">            </span></p>
+<p class="p1"><span class="Apple-converted-space">            </span>{/* Shutter Speed */}</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div className="flex flex-col items-center"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;div className="w-24 h-24 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${colors.shutterSpeed}22` }}&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;div className="text-center"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;div style={{ color: colors.shutterSpeed }} className="text-3xl font-bold"&gt;{shutterSpeeds[shutterSpeedIdx]}&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;div className="text-sm opacity-80"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{shutterSpeedIdx &lt; 3 ? "More light" : shutterSpeedIdx &gt; 3 ? "Less light" : "Balanced"}</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;div className="text-sm mt-2" style={{ color: colors.shutterSpeed }}&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>Controls motion blur</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
+<p class="p2"><span class="Apple-converted-space">            </span></p>
+<p class="p1"><span class="Apple-converted-space">            </span>{/* Aperture */}</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div className="flex flex-col items-center"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;div className="w-24 h-24 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${colors.aperture}22` }}&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;div className="text-center"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;div style={{ color: colors.aperture }} className="text-3xl font-bold"&gt;{apertures[apertureIdx]}&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;div className="text-sm opacity-80"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{apertureIdx &lt; 3 ? "Less light" : apertureIdx &gt; 3 ? "More light" : "Balanced"}</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;div className="text-sm mt-2" style={{ color: colors.aperture }}&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>Controls depth of field</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
+<p class="p2"><span class="Apple-converted-space">            </span></p>
+<p class="p1"><span class="Apple-converted-space">            </span>{/* ISO */}</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div className="flex flex-col items-center"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;div className="w-24 h-24 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${colors.iso}22` }}&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;div className="text-center"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;div style={{ color: colors.iso }} className="text-3xl font-bold"&gt;{isoValues[isoIdx]}&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;div className="text-sm opacity-80"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{isoIdx &lt; 3 ? "Less light" : isoIdx &gt; 3 ? "More light" : "Balanced"}</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;div className="text-sm mt-2" style={{ color: colors.iso }}&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>Controls noise level</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>{/* Buttons */}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;div className="flex justify-center gap-4"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;button</p>
+<p class="p1"><span class="Apple-converted-space">            </span>onClick={handleSubmit}</p>
+<p class="p1"><span class="Apple-converted-space">            </span>className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>Check Exposure</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;button</p>
+<p class="p1"><span class="Apple-converted-space">            </span>onClick={handleReset}</p>
+<p class="p1"><span class="Apple-converted-space">            </span>className="px-6 py-3 bg-gray-600 hover:bg-gray-700 rounded-lg font-medium transition-colors"</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>Reset</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
+<p class="p2"><span class="Apple-converted-space">        </span></p>
+<p class="p1"><span class="Apple-converted-space">        </span>{/* Light Meter */}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;div className="mt-8 mb-4"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;h3 className="text-lg font-medium mb-3 text-center"&gt;Light Meter&lt;/h3&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;div className="flex flex-col items-center"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div className="w-full max-w-lg bg-gray-800 rounded-lg p-4"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>{/* Light meter scale */}</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;div className="relative h-16"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>{/* Meter scale */}</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;div className="absolute top-0 left-0 w-full h-6 bg-black bg-opacity-30 rounded-lg flex items-center justify-between px-4"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;span className="text-sm"&gt;-2&lt;/span&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;span className="text-sm"&gt;-1&lt;/span&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;span className="text-sm"&gt;0&lt;/span&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;span className="text-sm"&gt;+1&lt;/span&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;span className="text-sm"&gt;+2&lt;/span&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
+<p class="p2"><span class="Apple-converted-space">                </span></p>
+<p class="p1"><span class="Apple-converted-space">                </span>{/* Meter needle - position based on exposure stops - now always visible */}</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;div<span class="Apple-converted-space"> </span></p>
+<p class="p1"><span class="Apple-converted-space">                  </span>className="absolute top-8 w-2 h-12 bg-white transition-all duration-300 ease-in-out"</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>style={{</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>left: `calc(50% + ${Math.min(Math.max(exposureStops, -2), 2) * 25}% - 1px)`,</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>backgroundColor: colors.lightMeter</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>}}</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&gt;&lt;/div&gt;</p>
+<p class="p2"><span class="Apple-converted-space">                </span></p>
+<p class="p1"><span class="Apple-converted-space">                </span>{/* Meter center line */}</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;div className="absolute top-6 left-1/2 w-0.5 h-4 bg-white transform -translate-x-1/2"&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;/div&gt;</p>
+<p class="p2"><span class="Apple-converted-space">              </span></p>
+<p class="p1"><span class="Apple-converted-space">              </span>{/* Exposure reading - now always visible */}</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;div className="text-center mt-4" style={{ color: colors.lightMeter }}&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>{exposureStops === 0 ? (</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;p className="font-bold"&gt;Perfect Exposure&lt;/p&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>) : exposureStops &lt; 0 ? (</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;p className="font-bold"&gt;Underexposed by {Math.abs(exposureStops).toFixed(1)} stops&lt;/p&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>) : (</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;p className="font-bold"&gt;Overexposed by {exposureStops.toFixed(1)} stops&lt;/p&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>)}</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
+<p class="p2"><span class="Apple-converted-space">        </span></p>
+<p class="p1"><span class="Apple-converted-space">        </span>{/* Feedback area */}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>{hasSubmitted &amp;&amp; (</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;div<span class="Apple-converted-space"> </span></p>
+<p class="p1"><span class="Apple-converted-space">            </span>className={`mt-6 p-4 rounded-lg text-center ${isCorrect ? 'bg-blue-900' : 'bg-amber-900'}`}</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;p className="font-medium text-lg"&gt;{feedback}&lt;/p&gt;</p>
+<p class="p2"><span class="Apple-converted-space">            </span></p>
+<p class="p1"><span class="Apple-converted-space">                            </span>{!isCorrect &amp;&amp; (</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;div className="mt-4 text-sm opacity-80"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;p&gt;Try adjusting your settings to achieve a balanced exposure.&lt;/p&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;p&gt;Remember: When one setting lets in more light, you may need to adjust the others to compensate.&lt;/p&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>{lightingIdx === 0 &amp;&amp; (</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;p&gt;In &lt;strong&gt;Night&lt;/strong&gt; conditions, you'll need slower shutter speeds, wider apertures, or higher ISO to compensate for the lack of light.&lt;/p&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>)}</p>
+<p class="p1"><span class="Apple-converted-space">                </span>{lightingIdx === 1 &amp;&amp; (</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;p&gt;In &lt;strong&gt;Indoors&lt;/strong&gt; conditions, you'll likely need slower shutter speeds or wider apertures to get enough light.&lt;/p&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>)}</p>
+<p class="p1"><span class="Apple-converted-space">                </span>{lightingIdx === 3 &amp;&amp; (</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;p&gt;In &lt;strong&gt;Overcast&lt;/strong&gt; conditions, you'll need faster shutter speeds or narrower apertures to prevent overexposure.&lt;/p&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>)}</p>
+<p class="p1"><span class="Apple-converted-space">                </span>{lightingIdx === 4 &amp;&amp; (</p>
+<p class="p1"><span class="Apple-converted-space">                  </span>&lt;p&gt;In bright &lt;strong&gt;Daylight&lt;/strong&gt;, you'll need faster shutter speeds, narrower apertures, or lower ISO to avoid overexposure.&lt;/p&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>)}</p>
+<p class="p1"><span class="Apple-converted-space">              </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>)}</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>)}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>{/* Educational info */}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;div className="mt-8 text-sm opacity-80"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;h3 className="font-medium mb-2"&gt;How to balance exposure:&lt;/h3&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;ul className="list-disc pl-5 space-y-1"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;li&gt;&lt;span style={{ color: colors.lighting }}&gt;Lighting conditions&lt;/span&gt; dramatically affect how much light is available&lt;/li&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;li&gt;&lt;span style={{ color: colors.shutterSpeed }}&gt;Faster shutter speeds&lt;/span&gt; reduce light but freeze motion&lt;/li&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;li&gt;&lt;span style={{ color: colors.aperture }}&gt;Wider apertures&lt;/span&gt; (smaller f-numbers) increase light but reduce depth of field&lt;/li&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;li&gt;&lt;span style={{ color: colors.iso }}&gt;Higher ISO&lt;/span&gt; increases light sensitivity but introduces noise&lt;/li&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;/ul&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
+<p class="p2"><span class="Apple-converted-space">        </span></p>
+<p class="p1"><span class="Apple-converted-space">        </span>{/* Copyright notice */}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;div className="mt-6 text-right text-sm opacity-60"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>© Christopher Buschelman 2025</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>);</p>
+<p class="p1">}</p>
+</body>
+</html>
