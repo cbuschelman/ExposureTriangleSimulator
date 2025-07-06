@@ -1,0 +1,455 @@
+import { useState, useEffect } from "react";
+
+export default function ExposureTriangleSimulator() {
+  // Values for each setting
+  const shutterSpeeds = ["1/8", "1/15", "1/30", "1/60", "1/125", "1/250", "1/500", "1/1000"];
+  const apertures = ["f16", "f11", "f8", "f5.6", "f4", "f2.8", "f2", "f1.4"];
+  const isoValues = ["100", "200", "400", "800", "1600", "3200", "6400", "12800"];
+  
+  // New lighting conditions and their exposure impacts
+  const lightingConditions = ["Night", "Indoors", "Shade", "Overcast", "Daylight"];
+  const lightingStops = [-4, -3, -2, 3, 4]; // Stops of light for each condition
+
+  // Color scheme
+  const colors = {
+    shutterSpeed: "#25C3ED", // Blue
+    aperture: "#D393C1",     // Purple
+    iso: "#EAEAEA",          // Light gray
+    lighting: "#F9A826",     // Amber/Orange for lighting
+    background: "#091727",   // Dark blue
+    text: "#FFFFFF",         // White text
+    success: "#049CD9",      // Blue for success (was green)
+    failure: "#F9A826",      // Amber for failure (was red)
+    lightMeter: "#049CD9",   // Light meter blue
+  };
+
+  // State for slider values (0-7 index)
+  const [shutterSpeedIdx, setShutterSpeedIdx] = useState(3); // Default 1/60
+  const [apertureIdx, setApertureIdx] = useState(3);         // Default f5.6
+  const [isoIdx, setIsoIdx] = useState(2);                   // Default 400
+  const [lightingIdx, setLightingIdx] = useState(2);         // Default Shade
+  
+  // State for feedback
+  const [feedback, setFeedback] = useState("");
+  const [isCorrect, setIsCorrect] = useState(null);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [exposureStops, setExposureStops] = useState(0);
+  
+  // Update exposure stops in real-time when settings change
+  useEffect(() => {
+    setExposureStops(calculateExposureStops());
+    setIsCorrect(isExposureCorrect());
+  }, [shutterSpeedIdx, apertureIdx, isoIdx, lightingIdx]);
+
+  // Calculate exposure value (simplified)
+  // In photography, each stop is a doubling/halving of light
+  // For this simulation, our index values directly correlate to stops
+  const calculateExposureValue = () => {
+    // Higher shutter speed index = less light
+    // Higher aperture index = more light (smaller f-number = larger opening)
+    // Higher ISO index = more light
+    // Add lighting condition effect to the calculation
+    
+    // For proper exposure, we want these to balance out
+    // A balanced exposure would be when these three values sum to a target value
+    
+    return (7 - shutterSpeedIdx) + apertureIdx + isoIdx + lightingStops[lightingIdx];
+  };
+
+  // Calculate exposure in stops relative to "correct" exposure
+  const calculateExposureStops = () => {
+    // For our simplified model, a "correct" exposure has a target value of 10
+    // Each unit away from 10 represents roughly 1 stop of under/overexposure
+    // We're clamping the output to be between -2 and +2 stops for the meter display
+    const ev = calculateExposureValue();
+    const stops = ev - 10;
+    return Math.min(Math.max(stops, -2), 2);
+  };
+
+  // Check if exposure is correct (in a specific range)
+  const isExposureCorrect = () => {
+    // For our simplified model, a "correct" exposure has a target value of 10
+    // This is a good balanced middle point in our system
+    const ev = calculateExposureValue();
+    return ev >= 9 && ev <= 11;
+  };
+
+  // Generate feedback based on current exposure
+  const generateFeedback = () => {
+    if (isExposureCorrect()) {
+      return "Perfect exposure! Your settings are well balanced.";
+    } else {
+      const ev = calculateExposureValue();
+      const stops = calculateExposureStops();
+      if (ev < 9) {
+        return `Your image would be underexposed by approximately ${Math.abs(stops).toFixed(1)} stops. Try using a slower shutter speed, wider aperture (smaller f-number), or higher ISO.`;
+      } else {
+        return `Your image would be overexposed by approximately ${Math.abs(stops).toFixed(1)} stops. Try using a faster shutter speed, narrower aperture (larger f-number), or lower ISO.`;
+      }
+    }
+  };
+
+  // Update feedback in real-time when settings change
+  useEffect(() => {
+    if (hasSubmitted) {
+      setFeedback(generateFeedback());
+    }
+  }, [shutterSpeedIdx, apertureIdx, isoIdx, lightingIdx, hasSubmitted]);
+
+  // Handle submit button click
+  const handleSubmit = () => {
+    setHasSubmitted(true);
+    setFeedback(generateFeedback());
+  };
+
+  // Reset the simulation
+  const handleReset = () => {
+    setHasSubmitted(false);
+    setFeedback("");
+    setIsCorrect(null);
+    setExposureStops(0);
+  };
+
+  return (
+    <div className="flex flex-col items-center p-8 font-sans text-white" style={{ fontFamily: "Roboto, sans-serif", backgroundColor: colors.background, aspectRatio: "16/9", width: "100%" }}>
+      <h1 className="text-3xl font-bold mb-6">The Exposure Triangle</h1>
+      
+      <div className="w-full max-w-4xl bg-black bg-opacity-30 p-6 rounded-lg">
+        {/* Lighting Condition Slider */}
+        <div className="mb-8">
+          <label className="text-lg font-medium mb-2 block" style={{ color: colors.lighting }}>
+            Lighting Condition
+          </label>
+          <div className="flex items-center gap-4">
+            <input
+              type="range"
+              min="0"
+              max="4"
+              value={lightingIdx}
+              onChange={(e) => setLightingIdx(parseInt(e.target.value))}
+              className="flex-grow"
+              style={{ accentColor: colors.lighting }}
+            />
+            <div className="text-center min-w-20 px-4 py-2 rounded-lg" style={{ backgroundColor: `${colors.lighting}22` }}>
+              <div style={{ color: colors.lighting }} className="text-xl font-bold">{lightingConditions[lightingIdx]}</div>
+              <div className="text-sm opacity-80">
+                {lightingStops[lightingIdx] > 0 ? `+${lightingStops[lightingIdx]} stops` : `${lightingStops[lightingIdx]} stops`}
+              </div>
+            </div>
+          </div>
+          {/* Fixed lighting condition labels */}
+          <div className="flex mt-1 text-sm">
+            <div className="flex-1 text-center">Night</div>
+            <div className="flex-1 text-center">Indoors</div>
+            <div className="flex-1 text-center">Shade</div>
+            <div className="flex-1 text-center">Overcast</div>
+            <div className="flex-1 text-center">Daylight</div>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-3 gap-6 mb-8">
+          {/* Visual representation of the triangle */}
+          <div className="col-span-3 flex justify-center mb-4">
+            <div className="relative">
+              <svg viewBox="0 0 300 280" width="300" height="280">
+                {/* Triangle */}
+                <polygon 
+                  points="150,10 10,250 290,250" 
+                  fill="none" 
+                  stroke="white" 
+                  strokeWidth="2"
+                />
+                
+                {/* Lighting condition indicator */}
+                <circle
+                  cx="150"
+                  cy="40"
+                  r="15"
+                  fill={colors.lighting}
+                  opacity="0.6"
+                />
+                <text 
+                  x="150"
+                  y="45"
+                  textAnchor="middle"
+                  fill="white"
+                  fontSize="10"
+                  fontFamily="Roboto"
+                >
+                  {lightingConditions[lightingIdx]}
+                </text>
+                
+                {/* Rotated Shutter Speed label along the outer right side, positioned higher */}
+                <text 
+                  transform="translate(230, 120) rotate(62)" 
+                  textAnchor="start" 
+                  fill={colors.shutterSpeed} 
+                  fontFamily="Roboto"
+                >
+                  Shutter Speed
+                </text>
+                
+                {/* Rotated Aperture label along the outer left side, positioned higher */}
+                <text 
+                  transform="translate(70, 120) rotate(-62)" 
+                  textAnchor="end" 
+                  fill={colors.aperture} 
+                  fontFamily="Roboto"
+                >
+                  Aperture
+                </text>
+                
+                <text x="150" y="275" textAnchor="middle" fill={colors.iso} fontFamily="Roboto">ISO</text>
+                
+                {/* Current settings indicator */}
+                <circle
+                  cx={150 - (shutterSpeedIdx - 3.5) * 20}
+                  cy={130 + (apertureIdx - isoIdx) * 10}
+                  r="12"
+                  fill={isCorrect === null ? "white" : isCorrect ? colors.success : colors.failure}
+                />
+              </svg>
+            </div>
+          </div>
+          
+          {/* Shutter Speed Slider */}
+          <div className="flex flex-col">
+            <label className="text-lg font-medium mb-2" style={{ color: colors.shutterSpeed }}>
+              Shutter Speed
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="7"
+              value={shutterSpeedIdx}
+              onChange={(e) => setShutterSpeedIdx(parseInt(e.target.value))}
+              className="mb-2"
+              style={{ accentColor: colors.shutterSpeed }}
+            />
+            <div className="flex justify-between">
+              <span>Slower (1/{shutterSpeeds[0].split('/')[1]})</span>
+              <span>Faster (1/{shutterSpeeds[7].split('/')[1]})</span>
+            </div>
+            <div className="text-center mt-4 text-2xl font-bold" style={{ color: colors.shutterSpeed }}>
+              {shutterSpeeds[shutterSpeedIdx]}
+            </div>
+          </div>
+          
+          {/* Aperture Slider */}
+          <div className="flex flex-col">
+            <label className="text-lg font-medium mb-2" style={{ color: colors.aperture }}>
+              Aperture
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="7"
+              value={apertureIdx}
+              onChange={(e) => setApertureIdx(parseInt(e.target.value))}
+              className="mb-2"
+              style={{ accentColor: colors.aperture }}
+            />
+            <div className="flex justify-between">
+              <span>Narrow (f16)</span>
+              <span>Wide (f1.4)</span>
+            </div>
+            <div className="text-center mt-4 text-2xl font-bold" style={{ color: colors.aperture }}>
+              {apertures[apertureIdx]}
+            </div>
+          </div>
+          
+          {/* ISO Slider */}
+          <div className="flex flex-col">
+            <label className="text-lg font-medium mb-2" style={{ color: colors.iso }}>
+              ISO
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="7"
+              value={isoIdx}
+              onChange={(e) => setIsoIdx(parseInt(e.target.value))}
+              className="mb-2"
+              style={{ accentColor: colors.iso }}
+            />
+            <div className="flex justify-between">
+              <span>Low (100)</span>
+              <span>High (12800)</span>
+            </div>
+            <div className="text-center mt-4 text-2xl font-bold" style={{ color: colors.iso }}>
+              {isoValues[isoIdx]}
+            </div>
+          </div>
+        </div>
+        
+        {/* Visual representation of settings */}
+        <div className="mb-8">
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            {/* Lighting Condition */}
+            <div className="flex flex-col items-center">
+              <div className="w-24 h-24 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${colors.lighting}22` }}>
+                <div className="text-center">
+                  <div style={{ color: colors.lighting }} className="text-2xl font-bold">{lightingConditions[lightingIdx]}</div>
+                  <div className="text-sm opacity-80">
+                    {lightingStops[lightingIdx] > 0 ? `+${lightingStops[lightingIdx]} stops` : `${lightingStops[lightingIdx]} stops`}
+                  </div>
+                </div>
+              </div>
+              <div className="text-sm mt-2" style={{ color: colors.lighting }}>
+                Ambient Light
+              </div>
+            </div>
+            
+            {/* Shutter Speed */}
+            <div className="flex flex-col items-center">
+              <div className="w-24 h-24 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${colors.shutterSpeed}22` }}>
+                <div className="text-center">
+                  <div style={{ color: colors.shutterSpeed }} className="text-3xl font-bold">{shutterSpeeds[shutterSpeedIdx]}</div>
+                  <div className="text-sm opacity-80">
+                    {shutterSpeedIdx < 3 ? "More light" : shutterSpeedIdx > 3 ? "Less light" : "Balanced"}
+                  </div>
+                </div>
+              </div>
+              <div className="text-sm mt-2" style={{ color: colors.shutterSpeed }}>
+                Controls motion blur
+              </div>
+            </div>
+            
+            {/* Aperture */}
+            <div className="flex flex-col items-center">
+              <div className="w-24 h-24 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${colors.aperture}22` }}>
+                <div className="text-center">
+                  <div style={{ color: colors.aperture }} className="text-3xl font-bold">{apertures[apertureIdx]}</div>
+                  <div className="text-sm opacity-80">
+                    {apertureIdx < 3 ? "Less light" : apertureIdx > 3 ? "More light" : "Balanced"}
+                  </div>
+                </div>
+              </div>
+              <div className="text-sm mt-2" style={{ color: colors.aperture }}>
+                Controls depth of field
+              </div>
+            </div>
+            
+            {/* ISO */}
+            <div className="flex flex-col items-center">
+              <div className="w-24 h-24 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${colors.iso}22` }}>
+                <div className="text-center">
+                  <div style={{ color: colors.iso }} className="text-3xl font-bold">{isoValues[isoIdx]}</div>
+                  <div className="text-sm opacity-80">
+                    {isoIdx < 3 ? "Less light" : isoIdx > 3 ? "More light" : "Balanced"}
+                  </div>
+                </div>
+              </div>
+              <div className="text-sm mt-2" style={{ color: colors.iso }}>
+                Controls noise level
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Buttons */}
+        <div className="flex justify-center gap-4">
+          <button
+            onClick={handleSubmit}
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+          >
+            Check Exposure
+          </button>
+          <button
+            onClick={handleReset}
+            className="px-6 py-3 bg-gray-600 hover:bg-gray-700 rounded-lg font-medium transition-colors"
+          >
+            Reset
+          </button>
+        </div>
+        
+        {/* Light Meter */}
+        <div className="mt-8 mb-4">
+          <h3 className="text-lg font-medium mb-3 text-center">Light Meter</h3>
+          <div className="flex flex-col items-center">
+            <div className="w-full max-w-lg bg-gray-800 rounded-lg p-4">
+              {/* Light meter scale */}
+              <div className="relative h-16">
+                {/* Meter scale */}
+                <div className="absolute top-0 left-0 w-full h-6 bg-black bg-opacity-30 rounded-lg flex items-center justify-between px-4">
+                  <span className="text-sm">-2</span>
+                  <span className="text-sm">-1</span>
+                  <span className="text-sm">0</span>
+                  <span className="text-sm">+1</span>
+                  <span className="text-sm">+2</span>
+                </div>
+                
+                {/* Meter needle - position based on exposure stops - now always visible */}
+                <div 
+                  className="absolute top-8 w-2 h-12 bg-white transition-all duration-300 ease-in-out"
+                  style={{
+                    left: `calc(50% + ${Math.min(Math.max(exposureStops, -2), 2) * 25}% - 1px)`,
+                    backgroundColor: colors.lightMeter
+                  }}
+                ></div>
+                
+                {/* Meter center line */}
+                <div className="absolute top-6 left-1/2 w-0.5 h-4 bg-white transform -translate-x-1/2"></div>
+              </div>
+              
+              {/* Exposure reading - now always visible */}
+              <div className="text-center mt-4" style={{ color: colors.lightMeter }}>
+                {exposureStops === 0 ? (
+                  <p className="font-bold">Perfect Exposure</p>
+                ) : exposureStops < 0 ? (
+                  <p className="font-bold">Underexposed by {Math.abs(exposureStops).toFixed(1)} stops</p>
+                ) : (
+                  <p className="font-bold">Overexposed by {exposureStops.toFixed(1)} stops</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Feedback area */}
+        {hasSubmitted && (
+          <div 
+            className={`mt-6 p-4 rounded-lg text-center ${isCorrect ? 'bg-blue-900' : 'bg-amber-900'}`}
+          >
+            <p className="font-medium text-lg">{feedback}</p>
+            
+                            {!isCorrect && (
+              <div className="mt-4 text-sm opacity-80">
+                <p>Try adjusting your settings to achieve a balanced exposure.</p>
+                <p>Remember: When one setting lets in more light, you may need to adjust the others to compensate.</p>
+                {lightingIdx === 0 && (
+                  <p>In <strong>Night</strong> conditions, you'll need slower shutter speeds, wider apertures, or higher ISO to compensate for the lack of light.</p>
+                )}
+                {lightingIdx === 1 && (
+                  <p>In <strong>Indoors</strong> conditions, you'll likely need slower shutter speeds or wider apertures to get enough light.</p>
+                )}
+                {lightingIdx === 3 && (
+                  <p>In <strong>Overcast</strong> conditions, you'll need faster shutter speeds or narrower apertures to prevent overexposure.</p>
+                )}
+                {lightingIdx === 4 && (
+                  <p>In bright <strong>Daylight</strong>, you'll need faster shutter speeds, narrower apertures, or lower ISO to avoid overexposure.</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Educational info */}
+        <div className="mt-8 text-sm opacity-80">
+          <h3 className="font-medium mb-2">How to balance exposure:</h3>
+          <ul className="list-disc pl-5 space-y-1">
+            <li><span style={{ color: colors.lighting }}>Lighting conditions</span> dramatically affect how much light is available</li>
+            <li><span style={{ color: colors.shutterSpeed }}>Faster shutter speeds</span> reduce light but freeze motion</li>
+            <li><span style={{ color: colors.aperture }}>Wider apertures</span> (smaller f-numbers) increase light but reduce depth of field</li>
+            <li><span style={{ color: colors.iso }}>Higher ISO</span> increases light sensitivity but introduces noise</li>
+          </ul>
+        </div>
+        
+        {/* Copyright notice */}
+        <div className="mt-6 text-right text-sm opacity-60">
+          © Christopher Buschelman 2025
+        </div>
+      </div>
+    </div>
+  );
+}
